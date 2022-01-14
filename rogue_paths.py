@@ -3,7 +3,6 @@ import networkx as nx
 import geopandas as gpd
 from osmnx.utils_graph import get_undirected
 import pandas as pd
-# import graph_funcs as gfc
 from os import path
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,9 +22,12 @@ def main():
     # fig, ax = ox.plot_graph_route(G_undirected, route, route_color="y", route_linewidth=6, node_size=0)
     # plt.show()
 
-    # get lat and lon from route and turninfor
-    lat, lon = get_lat_lon_from_osm_route(G_undirected, route)
-    turn_bool, turn_speed, turn_coords = get_turn_arrays(lat, lon)
+    # get lat and lon from route and turninfo
+    lats, lons = get_lat_lon_from_osm_route(G_undirected, route)
+    turn_bool, turn_speed, turn_coords = get_turn_arrays(lats, lons)
+
+    # get initial bearing
+    qdr = qdrdist(lats[0], lons[0], lats[1], lons[1])
 
 
 def get_lat_lon_from_osm_route(G, route):
@@ -52,8 +54,8 @@ def get_lat_lon_from_osm_route(G, route):
 
     """
     # add first node to route
-    lon = np.array(G.nodes[route[0]]["x"])
-    lat = np.array(G.nodes[route[0]]["y"])
+    lons = np.array(G.nodes[route[0]]["x"])
+    lats = np.array(G.nodes[route[0]]["y"])
 
 
     # loop through the rest for loop only adds from second point of edge
@@ -72,12 +74,12 @@ def get_lat_lon_from_osm_route(G, route):
             ys = ys[::-1]
         
         # only add from the second point of linestring
-        lon = np.append(lon, xs[1:])
-        lat = np.append(lat, ys[1:])
+        lons = np.append(lons, xs[1:])
+        lats = np.append(lats, ys[1:])
     
-    return lat, lon
+    return lats, lons
 
-def get_turn_arrays(lat, lon, cutoff_angle=25):
+def get_turn_arrays(lats, lons, cutoff_angle=25):
     """
     Get turn arrays from latitude and longitude arrays.
     The function returns three arrays with the turn boolean, turn speed and turn coordinates.
@@ -114,25 +116,25 @@ def get_turn_arrays(lat, lon, cutoff_angle=25):
     """
     
     # Define empty arrays that are same size as lat and lon
-    turn_speed = np.zeros(len(lat))
-    turn_bool = np.array([False]*len(lat), dtype=np.bool8)
-    turn_coords = np.array([(-9999.9,-9999.9)]*len(lat), dtype='f,f')
+    turn_speed = np.zeros(len(lats))
+    turn_bool = np.array([False]*len(lats), dtype=np.bool8)
+    turn_coords = np.array([(-9999.9,-9999.9)]*len(lats), dtype='f,f')
     
     # Initialize variables for the loop
-    lat_prev = lat[0]
-    lon_prev = lon[0]
+    lat_prev = lats[0]
+    lon_prev = lons[0]
 
     # loop thru the points to calculate turn angles
-    for i in range(1, len(lat)-1):
+    for i in range(1, len(lats)-1):
         # reset some values for the loop
-        lat_cur = lat[i]
-        lon_cur = lon[i]
-        lat_next = lat[i+1]
-        lon_next = lon[i+1]
+        lat_cur = lats[i]
+        lon_cur = lons[i]
+        lat_next = lats[i+1]
+        lon_next = lons[i+1]
         
         # calculate angle between points
-        d1 = qdrdist(lat_prev,lon_prev,lat_cur,lon_cur)
-        d2 = qdrdist(lat_cur,lon_cur,lat_next,lon_next)
+        d1 = qdrdist(lat_prev, lon_prev, lat_cur, lon_cur)
+        d2 = qdrdist(lat_cur, lon_cur, lat_next, lon_next)
 
         # fix angles that are larger than 180 degrees
         angle = abs(d2 - d1)
@@ -143,7 +145,7 @@ def get_turn_arrays(lat, lon, cutoff_angle=25):
 
             # set turn bool to true and get the turn coordinates
             turn_bool[i] = True
-            turn_coords[i] = (lat[i],lon[i])
+            turn_coords[i] = (lat_cur, lon_cur)
 
             # calculate the turn speed based on the angle.
             if angle<100:
@@ -156,31 +158,10 @@ def get_turn_arrays(lat, lon, cutoff_angle=25):
             turn_coords[i] = (-9999.9,-9999.9)
 
         # update the previous values at the end of the loop
-        lat_prev=lat_cur
-        lon_prev=lon_cur
+        lat_prev = lat_cur
+        lon_prev = lon_cur
     
     return turn_bool, turn_speed, turn_coords
-
-# from geo.py
-def rwgs84(latd):
-    """ Calculate the earths radius with WGS'84 geoid definition
-        In:  lat [deg] (latitude)
-        Out: R   [m]   (earth radius) """
-    lat    = np.radians(latd)
-    a      = 6378137.0       # [m] Major semi-axis WGS-84
-    b      = 6356752.314245  # [m] Minor semi-axis WGS-84
-    coslat = np.cos(lat)
-    sinlat = np.sin(lat)
-
-    an     = a * a * coslat
-    bn     = b * b * sinlat
-    ad     = a * coslat
-    bd     = b * sinlat
-
-    # Calculate radius in meters
-    r = np.sqrt((an * an + bn * bn) / (ad * ad + bd * bd))
-
-    return r
 
 # from geo.py
 def qdrdist(latd1, lond1, latd2, lond2):
@@ -206,6 +187,27 @@ def qdrdist(latd1, lond1, latd2, lond2):
                                 np.sin(lat1) * coslat2 * np.cos(lon2 - lon1)))
 
     return qdr
+
+# from geo.py
+def rwgs84(latd):
+    """ Calculate the earths radius with WGS'84 geoid definition
+        In:  lat [deg] (latitude)
+        Out: R   [m]   (earth radius) """
+    lat    = np.radians(latd)
+    a      = 6378137.0       # [m] Major semi-axis WGS-84
+    b      = 6356752.314245  # [m] Minor semi-axis WGS-84
+    coslat = np.cos(lat)
+    sinlat = np.sin(lat)
+
+    an     = a * a * coslat
+    bn     = b * b * sinlat
+    ad     = a * coslat
+    bd     = b * sinlat
+
+    # Calculate radius in meters
+    r = np.sqrt((an * an + bn * bn) / (ad * ad + bd * bd))
+
+    return r
     
 if __name__ == "__main__":
     main()
