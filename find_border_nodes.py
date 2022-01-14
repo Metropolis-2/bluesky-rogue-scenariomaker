@@ -5,6 +5,7 @@ This module finds the border nodes of a graph.
 # import modules
 import osmnx as ox
 import geopandas as gpd
+import pandas as pd
 from os import path
 
 def main():
@@ -16,13 +17,13 @@ def main():
     graph_path = path.join(path.dirname(__file__), 'gis/road_network/crs_4326_cleaned_simplified_network/cleaned_simplified.graphml')
     G = ox.load_graphml(graph_path)
 
-    node_osmid = find_border_nodes(airspace, G)
+    border_node_gdf = find_border_nodes(airspace, G)
 
 def find_border_nodes(airspace_gdf, G):
     """
     Finds the border nodes of the the constrained airspace polygon.
     The funciton needs a geopandas dataframe with the airspace polygon and
-    a networkx graph. The function returns a list of node ids.
+    a networkx graph. The function returns gdf with the border nodes.
 
     Parameters
     ----------
@@ -35,8 +36,8 @@ def find_border_nodes(airspace_gdf, G):
 
     Returns
     -------
-    border_nodes : list
-        List of border nodes.
+    border_nodes_gdf : geopandas.GeoDataFrame
+        GeoDataFrame with border nodes.
     """
 
     # Convert the crs gdf to a projected crs
@@ -52,10 +53,13 @@ def find_border_nodes(airspace_gdf, G):
     # see which nodes are inside the airspace border
     nodes_inside = nodes['geometry'].apply(lambda x: x.within(airspace_buff.values[0]))
 
-    # select the indixed of thase that are false
-    border_nodes = nodes_inside[nodes_inside == False].index.tolist()
+    # select border nodes based on when nodes_inside is False
+    border_nodes_gdf = nodes[nodes_inside == False]
 
-    return border_nodes
+    # convert back to 4326
+    border_nodes_gdf = border_nodes_gdf.to_crs(epsg=4326)
+
+    return border_nodes_gdf
 
 if __name__ == "__main__":
     main()
