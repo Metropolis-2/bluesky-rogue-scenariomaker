@@ -130,3 +130,5 @@ dmypy.json
 
 # apple
 .DS_STORE
+*.gpkg-shm
+*.gpkg-wal
