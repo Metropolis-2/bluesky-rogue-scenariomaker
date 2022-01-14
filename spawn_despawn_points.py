@@ -19,9 +19,14 @@ def main():
 
     # get origin and destination points for rogue aircraft
     origin_gdf, destination_gdf = get_spawn_despawn(airspace, 64, 100)
-    print(origin_gdf)
-    print(destination_gdf)
 
+    # select minimum distance between points in km
+    min_dist = 12 
+    # select a random orign and destination point
+    origin = origin_gdf.sample(1)
+    destination = destination_gdf.sample(1)
+
+    print(origin)
 def get_spawn_despawn(airspace, buffer_distance=64, spawn_distance=100):
     """
     Takes the total airspace border and offsets it by a certain amount and
