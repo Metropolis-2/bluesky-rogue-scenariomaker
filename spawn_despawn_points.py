@@ -12,6 +12,7 @@ import pandas as pd
 from os import path
 import numpy as np
 import random
+from shapely.geometry import LineString
 
 def main():
     # import airspace polygon with geopandas
@@ -32,15 +33,15 @@ def get_n_origin_destination_pairs(spawn_gdf, despawn_gdf, n):
     Parameters
     ----------
     spawn_gdf : geopandas.GeoDataFrame
-        GeoDataFrame with origin points containing a column with a list of
-        destination points that are in the despawn gdf.
+        GeoDataFrame with origin points containing a column with a 
+        list of destination points that are in the despawn gdf.
 
     despawn_gdf : geopandas.GeoDataFrame
         GeoDataFrame with destination points.
 
     n : int
         Number of origin and destination pairs to return.
-        
+
     Returns
     -------
     origin_destination_pairs : list
@@ -109,9 +110,8 @@ def get_spawn_despawn_gdfs(airspace, buffer_distance=64, spawn_distance=100, min
     # get the boundary as a linestring
     rogue_line = rogue_poly.values[0].boundary
 
-    # get radius, circumference
+    # get circumference of circle
     circumference = rogue_line.length
-    radius = circumference / (2 * np.pi)
 
     # get the number of points
     num_splits = int(circumference / spawn_distance)
