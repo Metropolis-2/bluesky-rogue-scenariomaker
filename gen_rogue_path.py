@@ -95,7 +95,7 @@ else:
 # %%
 
 # split the path into n segments
-desired_len = 400
+desired_len = 1000
 num_splits = int(straight_path.length / desired_len)
 
 path_points = [origin] + [ straight_path.interpolate((i/num_splits), normalized=True) for i in range(1, num_splits + 1)]
