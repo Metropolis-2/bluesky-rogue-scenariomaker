@@ -18,13 +18,17 @@ def main():
     airspace_path = path.join(path.dirname(__file__), 'gis/airspace/total_polygon.gpkg')
     airspace = gpd.read_file(airspace_path, driver='GPKG', layer='total_polygon')
 
+    # import airspace polygon with geopandas
+    airspace_path = path.join(path.dirname(__file__), 'gis/airspace/updated_constrained_airspace.gpkg')
+    con_airspace = gpd.read_file(airspace_path, driver='GPKG')
+
     # get origin and destination points for rogue aircraft
     spawn_gdf, despawn_gdf = get_spawn_despawn_gdfs(airspace, 64, 100, 12000)
 
     # get n origin and destination pairs
-    origin_destination_pairs = get_n_origin_destination_pairs(spawn_gdf, despawn_gdf, 6)
+    origin_destination_pairs = get_n_origin_destination_pairs(spawn_gdf, despawn_gdf, 9)
     
-    figure, axes = plt.subplots(nrows=3, ncols=2)
+    figure, axes = plt.subplots(nrows=3, ncols=3)
 
     col_counter = 0
     row_counter = 0
@@ -36,10 +40,17 @@ def main():
         if idx == 3:
             col_counter = 1
             row_counter = 0
+        elif idx == 6:
+            col_counter = 2
+            row_counter = 0
+        elif idx == 9:
+            col_counter = 3
+            row_counter = 0
 
         # plot the shapely linestring and airspace with matplolib
         axes[row_counter, col_counter].plot(random_path.xy[0], random_path.xy[1])
         axes[row_counter, col_counter].plot(airspace.geometry.boundary.values[0].xy[0], airspace.geometry.boundary.values[0].xy[1])
+        axes[row_counter, col_counter].plot(con_airspace.geometry.boundary.values[0].xy[0], con_airspace.geometry.boundary.values[0].xy[1])
 
         row_counter += 1
 
