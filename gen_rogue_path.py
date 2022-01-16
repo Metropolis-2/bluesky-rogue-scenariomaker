@@ -1,7 +1,6 @@
 # %%
 
 # import modules
-from sqlite3 import Row
 import osmnx as ox
 import geopandas as gpd
 import pandas as pd
