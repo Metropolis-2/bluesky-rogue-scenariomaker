@@ -6,6 +6,7 @@ import pandas as pd
 from os import path
 import matplotlib.pyplot as plt
 import numpy as np
+from shapely.geometry import LineString
 
 def main():
     # import common elements graph
@@ -34,6 +35,8 @@ def get_lat_lon_from_osm_route(G, route):
     """
     Get lat and lon from an osmnx route (list of nodes) and nx.MultGraph.
     The function returns two numpy arrays with the lat and lon of route.
+    Also return a GeoDataFrame with the lat and lon of the route as a
+    linestring.
 
     Parameters
     ----------
@@ -52,6 +55,8 @@ def get_lat_lon_from_osm_route(G, route):
     lon : numpy.ndarray
         Array with longitudes of route
 
+    route_gdf : geopandas.GeoDataFrame
+        GeoDataFrame with lat and lon of route as a linestring.
     """
     # add first node to route
     lons = np.array(G.nodes[route[0]]["x"])
@@ -76,8 +81,14 @@ def get_lat_lon_from_osm_route(G, route):
         # only add from the second point of linestring
         lons = np.append(lons, xs[1:])
         lats = np.append(lats, ys[1:])
+
+    # make a linestring from the coords
+    linestring = LineString(zip(lons, lats))
+
+    # make into a gdf
+    line_gdf = gpd.GeoDataFrame(geometry=[linestring], crs='epsg:4326')
     
-    return lats, lons
+    return lats, lons, line_gdf
 
 def get_turn_arrays(lats, lons, cutoff_angle=25):
     """
