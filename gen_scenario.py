@@ -1,3 +1,4 @@
+# %%
 import osmnx as ox
 import geopandas as gpd
 import pandas as pd
@@ -13,6 +14,7 @@ from pyproj import Transformer
 # import airspace polygon with geopandas
 airspace_path = path.join(path.dirname(__file__), 'gis/airspace/total_polygon.gpkg')
 airspace = gpd.read_file(airspace_path, driver='GPKG', layer='total_polygon')
+airspace_polygon = airspace.geometry.values[0]
 
 # get origin and destination points for rogue aircraft
 spawn_gdf, despawn_gdf = get_spawn_despawn_gdfs(airspace, 64, 100, 12000)
@@ -38,8 +40,15 @@ acidx = 1
 # choose one random path
 for idx, origin_destination_pair in enumerate(origin_destination_pairs):
 
-    random_path = gen_random_path(origin_destination_pair, segment_length, max_deviation, simplify_tolerance)
+    random_path = gen_random_path(origin_destination_pair, airspace_polygon, segment_length, max_deviation, simplify_tolerance)
+
+    # # split the random path linestring into segments
+    # segments = list(map(LineString, zip(random_path.coords[:-1], random_path.coords[1:])))
+
     x, y = random_path.xy[0], random_path.xy[1]
+
+    # check if any points that are not first or last
+
 
     # transform from UTM to WGS84
     lats, lons = transformer.transform(x, y)
