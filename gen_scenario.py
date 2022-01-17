@@ -32,7 +32,7 @@ segment_length = 1000
 max_deviation = 3000
 simplify_tolerance = 400
 
-acid = 1
+acidx = 1
 # choose one random path
 for idx, origin_destination_pair in enumerate(origin_destination_pairs):
 
@@ -46,16 +46,20 @@ for idx, origin_destination_pair in enumerate(origin_destination_pairs):
     achdg = qdrdist(lats[0], lons[0], lats[1], lons[1])
 
     # first line
-    scenario_lines.append(f'00:00:00>CREROGUE R{acid} MP30 {lats[0]} {lons[0]} {achdg} 30 30')
+    scenario_lines.append(f'00:00:00>CREROGUE R{acidx} MP30 {lats[0]} {lons[0]} {achdg} 30 30')
 
     # add the rest of the lines as waypoints
     for i in range(1, len(lats)):
-        scenario_lines.append(f'00:00:00>ADDWPT R{acid} {lats[i]} {lons[i]}')
+        scenario_lines.append(f'00:00:00>ADDWPT R{acidx} {lats[i]} {lons[i]},,30')
+
+    # turn lnav on
+    scenario_lines.append(f'00:00:00>LNAV R{acidx} ON')
+    scenario_lines.append(f'00:00:00>VNAV R{acidx} ON')
 
     # add the last line to delete the aircraft
-    scenario_lines.append(f'00:00:00>R{acid} ATIDST {lats[-1]} {lons[-1]} 0.01 DEL R{acid}')
+    scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[-1]} {lons[-1]} 0.01 DEL R{acidx}')
 
-    acid += 1
+    acidx += 1
 
 # write the scenario to a file
 scenario_path = path.join(path.dirname(__file__), 'scenarios/R_1.scn')
