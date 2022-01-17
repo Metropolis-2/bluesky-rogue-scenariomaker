@@ -1,4 +1,3 @@
-# %%
 import osmnx as ox
 import geopandas as gpd
 import pandas as pd
@@ -32,6 +31,9 @@ segment_length = 1000
 max_deviation = 3000
 simplify_tolerance = 400
 
+# cruise altitudes (in feet)
+cruise_alts = np.arange(30, 510, 30)
+
 acidx = 1
 # choose one random path
 for idx, origin_destination_pair in enumerate(origin_destination_pairs):
@@ -47,14 +49,26 @@ for idx, origin_destination_pair in enumerate(origin_destination_pairs):
 
     # first line
     scenario_lines.append(f'00:00:00>CREROGUE R{acidx} MP30 {lats[0]} {lons[0]} {achdg} 30 30')
+    
+    # Make waypoints flyover
+    scenario_lines.append(f'00:00:00>ADDWPTMODE R{acidx} FLYOVER')
 
     # add the rest of the lines as waypoints
     for i in range(1, len(lats)):
         scenario_lines.append(f'00:00:00>ADDWPT R{acidx} {lats[i]} {lons[i]},,30')
 
-    # turn lnav on
+    # turn vnav and lnav on
     scenario_lines.append(f'00:00:00>LNAV R{acidx} ON')
     scenario_lines.append(f'00:00:00>VNAV R{acidx} ON')
+
+    # add the cruise altitudes to the scenario except to the last waypoint
+    for i in range(1, len(lats) - 1):
+            curr_alt = np.random.choice(cruise_alts)
+            scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 SPD R{acidx} 0')
+            scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 R{acidx} ATSPD 0 ALT R{acidx} {curr_alt}')
+            scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 R{acidx} ATALT {curr_alt} LNAV R{acidx} ON ')
+            scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 R{acidx} ATALT {curr_alt} VNAV R{acidx} ON ')
+
 
     # add the last line to delete the aircraft
     scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[-1]} {lons[-1]} 0.01 DEL R{acidx}')
@@ -62,7 +76,7 @@ for idx, origin_destination_pair in enumerate(origin_destination_pairs):
     acidx += 1
 
 # write the scenario to a file
-scenario_path = path.join(path.dirname(__file__), 'scenarios/R_1.scn')
+scenario_path = path.join(path.dirname(__file__), f'scenarios/R{acidx-1}.scn')
 with open(scenario_path, 'w') as f:
     for line in scenario_lines:
         f.write(f'{line}\n')
