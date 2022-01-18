@@ -1,6 +1,24 @@
-# %%
+"""
+Code contains functions that are used to generate paths through the airspace.
 
-# import modules
+There are two important functions in this file:
+    1. gen_random_path()
+    2. gen_path_through_constrained()
+
+The important imported modules from this project are:
+    1. find_border_nodes used for gen_path_through_constrained
+    2. rogue_paths_constrained used to get the path only through constrained airspace
+
+The other functions are helper functions for the two important functions.
+
+main() is used to test the functionality of the functions in this file.
+It uses the module spawn_despawn_points for choosing the origin and destination points.
+
+Code written by: Andres Morfin Veytia
+Project: Metropolis 2
+
+"""
+
 import osmnx as ox
 import geopandas as gpd
 import pandas as pd
@@ -8,13 +26,16 @@ from os import path
 import numpy as np
 from shapely.geometry import LineString, Point, MultiPoint
 from shapely.ops import linemerge
+from scipy.spatial.transform import Rotation as R
+
+# project modules
 from find_border_nodes import find_border_nodes
 from rogue_paths_constrained import get_lat_lon_from_osm_route
-from spawn_despawn_points import get_spawn_despawn_gdfs, get_n_origin_destination_pairs
-from scipy.spatial.transform import Rotation as R
-from matplotlib import pyplot as plt
 
 def main():
+
+    from matplotlib import pyplot as plt
+    from spawn_despawn_points import get_spawn_despawn_gdfs, get_n_origin_destination_pairs
 
     # import airspace polygon with geopandas
     airspace_path = path.join(path.dirname(__file__), 'gis/airspace/total_polygon.gpkg')
