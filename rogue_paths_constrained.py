@@ -157,6 +157,9 @@ def get_turn_arrays(lats, lons, cutoff_angle=25):
         # update the previous values at the end of the loop
         lat_prev = lat_cur
         lon_prev = lon_cur
+
+    # make first entry to turn bool true (entering constrained airspace)
+    turn_bool[0] = True
     
     return turn_bool, turn_speed, turn_coords
 

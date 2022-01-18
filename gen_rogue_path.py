@@ -25,7 +25,7 @@ from scipy.spatial.transform import Rotation as R
 
 # project modules
 from find_border_nodes import find_border_nodes
-from rogue_paths_constrained import get_lat_lon_from_osm_route
+from rogue_paths_constrained import get_lat_lon_from_osm_route, get_turn_arrays
 
 def gen_random_path(origin_destination_pair, airspace_polygon, segment_length=1000, max_deviation=3000, simplify_tolerance=400):
     """
@@ -158,6 +158,10 @@ def gen_path_through_constrained(random_path, con_airspace, G):
     The last thing is to merge the front path, path through constrained airspace,
     and back path into one path.
 
+    Also returns a turn bool that indicates whether there is a turn.
+    Note that it is always false for open airspace. Also returns a bool
+    that tells if you are in constrained airspace.
+
     Parameters
     ----------
     random_path : shapely.geometry.LineString
@@ -166,11 +170,17 @@ def gen_path_through_constrained(random_path, con_airspace, G):
         The constrained airspace.
     G : networkx.MultiGraph
         The graph of the constrained airspace
+    opt : str
+        The option to return the path. can be 'merged' or 'split'.
     
     Returns
-    -------
+    -------        
     shapely.geometry.LineString
-        The path that does not violate the constrained airspace.
+        The full path that does not violate the constrained airspace.
+
+    numpy.ndarray
+        The turn bool.
+    
     """
     # get the airspace polygon
     con_airspace_polygon = con_airspace.geometry.values[0]
@@ -205,17 +215,34 @@ def gen_path_through_constrained(random_path, con_airspace, G):
     const_route = ox.shortest_path(G, first_node, last_node)
 
     # get lat lon from osm route
-    _, _, line_gdf = get_lat_lon_from_osm_route(G, const_route)
-
-    # convert to epsg 32633
+    lats_c, lons_c, line_gdf = get_lat_lon_from_osm_route(G, const_route)
+     
+     # convert to epsg 32633
     line_gdf = line_gdf.to_crs(epsg=32633)
-    route_line_string = line_gdf.geometry.values[0]
-    route_line_string = round_geometry(route_line_string)
+    const_path = line_gdf.geometry.values[0]
+    const_path = round_geometry(const_path)
 
     # merge the front and back paths
-    const_path = linemerge([front_path, route_line_string, back_path])
+    merged_path = linemerge([front_path, const_path, back_path])
 
-    return const_path
+    # get turn bool for constrained airspace, front and back paths
+    turn_bool_const, _, _ = get_turn_arrays(lats_c, lons_c, 25)
+    turn_bool_front = np.array([False] * (len(front_path.coords) - 1))
+    turn_bool_back = np.array([False] * (len(back_path.coords) - 1))
+
+    # combine arrays
+    turn_bool = np.concatenate([turn_bool_front, turn_bool_const, turn_bool_back])
+
+    # create another bool that tells if in open or constrained airspace
+    const_bool_const = np.array([True] * (len(const_path.coords) - 1))
+    const_bool_front = np.array([False] * len(front_path.coords))
+    const_bool_back = np.array([False] * (len(back_path.coords) - 1))
+   
+    # combine arrays
+    in_constrained = np.concatenate([const_bool_front, const_bool_const, const_bool_back])
+    
+    return merged_path, turn_bool, in_constrained
+
 
 '''HELPER FUNCTIONS BELOW'''
 
@@ -396,7 +423,7 @@ def test():
         random_path = gen_random_path(origin_destination_pair, airspace_polygon)
 
         # path that cares about constrained airspace
-        random_path = gen_path_through_constrained(random_path, con_airspace, G_undirected)
+        random_path, turn_bool, in_constrained = gen_path_through_constrained(random_path, con_airspace, G_undirected)
 
         if idx == 3:
             col_counter = 1

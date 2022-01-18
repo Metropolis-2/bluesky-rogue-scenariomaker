@@ -7,11 +7,10 @@ import numpy as np
 from shapely.geometry import LineString, Point, MultiPoint
 from spawn_despawn_points import get_spawn_despawn_gdfs, get_n_origin_destination_pairs
 from gen_rogue_path import gen_random_path, gen_path_through_constrained
-from rogue_paths_constrained import qdrdist
-from scipy.spatial.transform import Rotation as R
+
 from pyproj import Transformer
 from find_border_nodes import find_border_nodes
-from rogue_paths_constrained import get_lat_lon_from_osm_route
+from rogue_paths_constrained import get_lat_lon_from_osm_route, qdrdist
 from shapely.ops import linemerge
 from matplotlib import pyplot as plt
 
@@ -64,18 +63,19 @@ origin_destination_pair = origin_destination_pairs[0]
 random_path = gen_random_path(origin_destination_pair, airspace_polygon, segment_length, max_deviation, simplify_tolerance)
 
 # convert random path to one that cares about constrained airspace
-legs = gen_path_through_constrained(random_path, con_airspace, G_undirected)
+merged_path, turn_bool, in_constrained = gen_path_through_constrained(random_path, con_airspace, G_undirected)
 
 # plot random path and airspace
 plt.figure(figsize=(8, 8))
-plt.plot(legs.xy[0], legs.xy[1])
+plt.plot(merged_path.xy[0], merged_path.xy[1])
 plt.plot(airspace.geometry.boundary.values[0].xy[0], airspace.geometry.boundary.values[0].xy[1])
 plt.plot(con_airspace.geometry.boundary.values[0].xy[0], con_airspace.geometry.boundary.values[0].xy[1])
 plt.show()
 
-# %%
 # get x,y coordinates of random path
-x, y = legs.xy[0], legs.xy[1]
+x, y = merged_path.xy[0], merged_path.xy[1]
+
+# %%
 
 # transform from UTM to WGS84
 lats, lons = transformer.transform(x, y)
@@ -84,29 +84,33 @@ lats, lons = transformer.transform(x, y)
 achdg = qdrdist(lats[0], lons[0], lats[1], lons[1])
 
 # first line
+scenario_lines.append(f'00:00:00>CASMACHTHR 0.0')
 scenario_lines.append(f'00:00:00>CREROGUE R{acidx} MP30 {lats[0]} {lons[0]} {achdg} 30 30')
 
-# Make waypoints flyover
-scenario_lines.append(f'00:00:00>ADDWPTMODE R{acidx} FLYOVER')
-
+# Create the add waypoints command
+addwypoint_lines = [f'00:00:00>ADDWAYPOINTS R{acidx}']
 # add the rest of the lines as waypoints
 for i in range(1, len(lats)):
-    scenario_lines.append(f'00:00:00>ADDWPT R{acidx} {lats[i]} {lons[i]},,30')
+    if turn_bool[i]:
+        addwypoint_lines.append(f'{lats[i]} {lons[i]},,30,TURNSPD,5')
+    else:
+        addwypoint_lines.append(f'{lats[i]} {lons[i]},,30,FLYBY, 0')
+scenario_lines.append(','.join(addwypoint_lines))
 
 # turn vnav and lnav on
 scenario_lines.append(f'00:00:00>LNAV R{acidx} ON')
 scenario_lines.append(f'00:00:00>VNAV R{acidx} ON')
 
-# add the cruise altitudes to the scenario except to the last waypoint
-for i in range(1, len(lats) - 1):
-        curr_alt = np.random.choice(cruise_alts)
-        scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 SPD R{acidx} 0')
-        scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 R{acidx} ATSPD 0 ALT R{acidx} {curr_alt}')
-        scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 R{acidx} ATALT {curr_alt} LNAV R{acidx} ON ')
-        scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 R{acidx} ATALT {curr_alt} VNAV R{acidx} ON ')
+# # add the cruise altitudes to the scenario except to the last waypoint
+# for i in range(1, len(lats) - 1):
+#         curr_alt = np.random.choice(cruise_alts)
+#         scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 SPD R{acidx} 0')
+#         scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 R{acidx} ATSPD 0 ALT R{acidx} {curr_alt}')
+#         scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 R{acidx} ATALT {curr_alt} LNAV R{acidx} ON ')
+#         scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[i]} {lons[i]} 0.01 R{acidx} ATALT {curr_alt} VNAV R{acidx} ON ')
 
 
-# add the last line to delete the aircraft
+# # add the last line to delete the aircraft
 scenario_lines.append(f'00:00:00>R{acidx} ATDIST {lats[-1]} {lons[-1]} 0.01 DEL R{acidx}')
 
 acidx += 1
@@ -116,5 +120,3 @@ scenario_path = path.join(path.dirname(__file__), f'scenarios/R{acidx-1}.scn')
 with open(scenario_path, 'w') as f:
     for line in scenario_lines:
         f.write(f'{line}\n')
-
-# %%
