@@ -9,20 +9,15 @@ The important imported modules from this project are:
     1. find_border_nodes used for gen_path_through_constrained
     2. rogue_paths_constrained used to get the path only through constrained airspace
 
-The other functions are helper functions for the two important functions.
-
-main() is used to test the functionality of the functions in this file.
-It uses the module spawn_despawn_points for choosing the origin and destination points.
+The other functions are helper and test functions for the two important functions.
 
 Code written by: Andres Morfin Veytia
 Project: Metropolis 2
-
 """
 
 import osmnx as ox
 import geopandas as gpd
 import pandas as pd
-from os import path
 import numpy as np
 from shapely.geometry import LineString, Point, MultiPoint
 from shapely.ops import linemerge
@@ -31,67 +26,6 @@ from scipy.spatial.transform import Rotation as R
 # project modules
 from find_border_nodes import find_border_nodes
 from rogue_paths_constrained import get_lat_lon_from_osm_route
-
-def main():
-
-    from matplotlib import pyplot as plt
-    from spawn_despawn_points import get_spawn_despawn_gdfs, get_n_origin_destination_pairs
-
-    # import airspace polygon with geopandas
-    airspace_path = path.join(path.dirname(__file__), 'gis/airspace/total_polygon.gpkg')
-    airspace = gpd.read_file(airspace_path, driver='GPKG', layer='total_polygon')
-    airspace_polygon = airspace.geometry.values[0]
-
-    # import airspace polygon with geopandas
-    airspace_path = path.join(path.dirname(__file__), 'gis/airspace/updated_constrained_airspace.gpkg')
-    con_airspace = gpd.read_file(airspace_path, driver='GPKG')
-
-    # import common elements graph with osmnx
-    graph_path = path.join(path.dirname(__file__), 'gis/road_network/crs_4326_cleaned_simplified_network/cleaned_simplified.graphml')
-    G = ox.load_graphml(graph_path)
-
-    # convert to undirected graph
-    G_undirected = ox.get_undirected(G)
-
-    # get origin and destination points for rogue aircraft
-    spawn_gdf, despawn_gdf = get_spawn_despawn_gdfs(airspace, 64, 100, 12000)
-
-    # get n origin and destination pairs
-    origin_destination_pairs = get_n_origin_destination_pairs(spawn_gdf, despawn_gdf, 9)
-    
-    figure, axes = plt.subplots(nrows=3, ncols=3)
-
-    col_counter = 0
-    row_counter = 0
-    # choose one random path
-    for idx, origin_destination_pair in enumerate(origin_destination_pairs):
-        
-        # path that doesn't care about constrained airspace
-        random_path = gen_random_path(origin_destination_pair, airspace_polygon)
-
-        # path that cares about constrained airspace
-        random_path = gen_path_through_constrained(random_path, con_airspace, G_undirected)
-
-        if idx == 3:
-            col_counter = 1
-            row_counter = 0
-        elif idx == 6:
-            col_counter = 2
-            row_counter = 0
-        elif idx == 9:
-            col_counter = 3
-            row_counter = 0
-
-        # plot the shapely linestring and airspace with matplolib
-        axes[row_counter, col_counter].plot(random_path.xy[0], random_path.xy[1])
-        axes[row_counter, col_counter].plot(airspace.geometry.boundary.values[0].xy[0], airspace.geometry.boundary.values[0].xy[1])
-        axes[row_counter, col_counter].plot(con_airspace.geometry.boundary.values[0].xy[0], con_airspace.geometry.boundary.values[0].xy[1])
-
-        row_counter += 1
-
-    figure.tight_layout()
-
-    plt.show()
 
 def gen_random_path(origin_destination_pair, airspace_polygon, segment_length=1000, max_deviation=3000, simplify_tolerance=400):
     """
@@ -416,5 +350,74 @@ def filter_multipoint_geometry(intersecting_point, points_to_connect):
     
     return intersecting_point
 
+'''TEST FUNCTION BELOW'''
+
+def test():
+    """
+    Test the functions in this module. It uses the module spawn_despawn_points 
+    for choosing the origin and destination points and makes a nice plot of several paths.
+    """
+
+    from os import path
+    from matplotlib import pyplot as plt
+
+    from spawn_despawn_points import get_spawn_despawn_gdfs, get_n_origin_destination_pairs
+
+    # import airspace polygon with geopandas
+    airspace_path = path.join(path.dirname(__file__), 'gis/airspace/total_polygon.gpkg')
+    airspace = gpd.read_file(airspace_path, driver='GPKG', layer='total_polygon')
+    airspace_polygon = airspace.geometry.values[0]
+
+    # import airspace polygon with geopandas
+    airspace_path = path.join(path.dirname(__file__), 'gis/airspace/updated_constrained_airspace.gpkg')
+    con_airspace = gpd.read_file(airspace_path, driver='GPKG')
+
+    # import common elements graph with osmnx
+    graph_path = path.join(path.dirname(__file__), 'gis/road_network/crs_4326_cleaned_simplified_network/cleaned_simplified.graphml')
+    G = ox.load_graphml(graph_path)
+
+    # convert to undirected graph
+    G_undirected = ox.get_undirected(G)
+
+    # get origin and destination points for rogue aircraft
+    spawn_gdf, despawn_gdf = get_spawn_despawn_gdfs(airspace, 64, 100, 12000)
+
+    # get n origin and destination pairs
+    origin_destination_pairs = get_n_origin_destination_pairs(spawn_gdf, despawn_gdf, 9)
+    
+    figure, axes = plt.subplots(nrows=3, ncols=3)
+
+    col_counter = 0
+    row_counter = 0
+    # choose one random path
+    for idx, origin_destination_pair in enumerate(origin_destination_pairs):
+        
+        # path that doesn't care about constrained airspace
+        random_path = gen_random_path(origin_destination_pair, airspace_polygon)
+
+        # path that cares about constrained airspace
+        random_path = gen_path_through_constrained(random_path, con_airspace, G_undirected)
+
+        if idx == 3:
+            col_counter = 1
+            row_counter = 0
+        elif idx == 6:
+            col_counter = 2
+            row_counter = 0
+        elif idx == 9:
+            col_counter = 3
+            row_counter = 0
+
+        # plot the shapely linestring and airspace with matplolib
+        axes[row_counter, col_counter].plot(random_path.xy[0], random_path.xy[1])
+        axes[row_counter, col_counter].plot(airspace.geometry.boundary.values[0].xy[0], airspace.geometry.boundary.values[0].xy[1])
+        axes[row_counter, col_counter].plot(con_airspace.geometry.boundary.values[0].xy[0], con_airspace.geometry.boundary.values[0].xy[1])
+
+        row_counter += 1
+
+    figure.tight_layout()
+
+    plt.show()
+
 if __name__ == '__main__':
-    main()
+    test()

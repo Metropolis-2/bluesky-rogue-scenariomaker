@@ -1,25 +1,19 @@
 """
-This module finds the border nodes of a graph.
+Code contains function that is used to find the border nodes of the
+constrained airspace polygon.
+
+There is one important function in this file:
+    1. find_border_nodes()
+
+test() is used to test the functionality of the functions in this file.
+
+Code written by: Andres Morfin Veytia
+Project: Metropolis 2
 """
 
-# import modules
 import osmnx as ox
 import geopandas as gpd
-import pandas as pd
-from os import path
 from rtree import index
-
-
-def main():
-    # import constrained airspace polygon with geopandas
-    airspace_path = path.join(path.dirname(__file__), 'gis/airspace/updated_constrained_airspace.gpkg')
-    airspace = gpd.read_file(airspace_path)
-
-    # import common elements graph with osmnx
-    graph_path = path.join(path.dirname(__file__), 'gis/road_network/crs_4326_cleaned_simplified_network/cleaned_simplified.graphml')
-    G = ox.load_graphml(graph_path)
-
-    border_node_gdf = find_border_nodes(airspace, G)
 
 def find_border_nodes(airspace_gdf, G):
     """
@@ -71,5 +65,23 @@ def find_border_nodes(airspace_gdf, G):
 
     return border_nodes_gdf, border_nodes_rtree
 
+'''TEST FUNCTION BELOW'''
+
+def test():
+    """
+    Test the functionality of the function in this module.
+    """
+    from os import path
+
+    # import constrained airspace polygon with geopandas
+    airspace_path = path.join(path.dirname(__file__), 'gis/airspace/updated_constrained_airspace.gpkg')
+    airspace = gpd.read_file(airspace_path)
+
+    # import common elements graph with osmnx
+    graph_path = path.join(path.dirname(__file__), 'gis/road_network/crs_4326_cleaned_simplified_network/cleaned_simplified.graphml')
+    G = ox.load_graphml(graph_path)
+
+    border_node_gdf = find_border_nodes(airspace, G)
+
 if __name__ == "__main__":
-    main()
+    test()

@@ -1,73 +1,19 @@
 """
-This code takes the total airspace border that and offsets by a certain amount
-and then takes the resulting polygon and splits it into a set of points that
-that are spaced by a certain distance. The resulting points can then be used
-as origin and destination points for rogue aircraft.
+This module creates spawn and despawn points and these can be used
+to generate random origin, destination pairs for rogue aircraft.
+
+There are two important functions in this file:
+    1. get_spawn_despawn_gdfs()
+    2. get_n_origin_destination_pairs()
+
+The other is a test functions for the module.
+
+Code written by: Andres Morfin Veytia
+Project: Metropolis 2
 """
 
-# import modules
-import osmnx as ox
 import geopandas as gpd
-import pandas as pd
-from os import path
-import numpy as np
 import random
-from shapely.geometry import LineString
-
-def main():
-    # import airspace polygon with geopandas
-    airspace_path = path.join(path.dirname(__file__), 'gis/airspace/total_polygon.gpkg')
-    airspace = gpd.read_file(airspace_path, driver='GPKG', layer='total_polygon')
-
-    # get origin and destination points for rogue aircraft
-    spawn_gdf, despawn_gdf = get_spawn_despawn_gdfs(airspace, 64, 100, 12000)
-
-    # get 10 origin and destination pairs
-    origin_destination_pairs = get_n_origin_destination_pairs(spawn_gdf, despawn_gdf, 10)
-
-def get_n_origin_destination_pairs(spawn_gdf, despawn_gdf, n):
-    """
-    Takes the spawn and despawn points and returns a list of n  
-    randomly generated origin and destination pairs.
-
-    Parameters
-    ----------
-    spawn_gdf : geopandas.GeoDataFrame
-        GeoDataFrame with origin points containing a column with a 
-        list of destination points that are in the despawn gdf.
-
-    despawn_gdf : geopandas.GeoDataFrame
-        GeoDataFrame with destination points.
-
-    n : int
-        Number of origin and destination pairs to return.
-
-    Returns
-    -------
-    origin_destination_pairs : list
-        List of n randomly generated origin and destination pairs.
-    """
-
-    # get the number of origin and destination points
-    origin_destination_pairs = []
-    
-    for _ in range(n):
-        
-        # select a random origin
-        origin_gdf = spawn_gdf.sample(1)
-        origin_location = origin_gdf['geometry'].values[0]
-
-        # select a random destination from the destination list
-        destination_list = origin_gdf['valid_destinations'].values[0]
-        destination_idx = random.choice(destination_list)
-
-        # get the destination point from despawn gdf
-        destination_location = despawn_gdf.loc[destination_idx].values[0]
-
-        # add to list
-        origin_destination_pairs.append((origin_location, destination_location))
-    
-    return origin_destination_pairs
 
 def get_spawn_despawn_gdfs(airspace, buffer_distance=64, spawn_distance=100, min_path_distance=12000):
     """
@@ -141,5 +87,67 @@ def get_spawn_despawn_gdfs(airspace, buffer_distance=64, spawn_distance=100, min
 
     return origin_gdf, destination_gdf
 
+def get_n_origin_destination_pairs(spawn_gdf, despawn_gdf, n):
+    """
+    Takes the spawn and despawn points and returns a list of n  
+    randomly generated origin and destination pairs.
+
+    Parameters
+    ----------
+    spawn_gdf : geopandas.GeoDataFrame
+        GeoDataFrame with origin points containing a column with a 
+        list of destination points that are in the despawn gdf.
+
+    despawn_gdf : geopandas.GeoDataFrame
+        GeoDataFrame with destination points.
+
+    n : int
+        Number of origin and destination pairs to return.
+
+    Returns
+    -------
+    origin_destination_pairs : list
+        List of n randomly generated origin and destination pairs.
+    """
+
+    # get the number of origin and destination points
+    origin_destination_pairs = []
+    
+    for _ in range(n):
+        
+        # select a random origin
+        origin_gdf = spawn_gdf.sample(1)
+        origin_location = origin_gdf['geometry'].values[0]
+
+        # select a random destination from the destination list
+        destination_list = origin_gdf['valid_destinations'].values[0]
+        destination_idx = random.choice(destination_list)
+
+        # get the destination point from despawn gdf
+        destination_location = despawn_gdf.loc[destination_idx].values[0]
+
+        # add to list
+        origin_destination_pairs.append((origin_location, destination_location))
+    
+    return origin_destination_pairs
+
+'''TEST FUNCTION BELOW'''
+
+def test():
+    """
+    Test function for the module.
+    """
+    from os import path
+
+    # import airspace polygon with geopandas
+    airspace_path = path.join(path.dirname(__file__), 'gis/airspace/total_polygon.gpkg')
+    airspace = gpd.read_file(airspace_path, driver='GPKG', layer='total_polygon')
+
+    # get origin and destination points for rogue aircraft
+    spawn_gdf, despawn_gdf = get_spawn_despawn_gdfs(airspace, 64, 100, 12000)
+
+    # get 10 origin and destination pairs
+    origin_destination_pairs = get_n_origin_destination_pairs(spawn_gdf, despawn_gdf, 10)
+
 if __name__ == '__main__':
-    main()
+    test()

@@ -1,35 +1,21 @@
+"""
+Code contains functions that are used to generate a path only
+through constrained airspace. It also gives information
+about turn speeds, bools, coordinates based on angles.
+
+There are two important functions in this file:
+    1. get_lat_lon_from_osm_route()
+    2. get_turn_arrays()
+
+The other functions are helper and test functions for the two important functions.
+
+Code written by: Andres Morfin Veytia
+Project: Metropolis 2
+"""
 import osmnx as ox
-import networkx as nx
 import geopandas as gpd
-from osmnx.utils_graph import get_undirected
-import pandas as pd
-from os import path
-import matplotlib.pyplot as plt
 import numpy as np
 from shapely.geometry import LineString
-
-def main():
-    # import common elements graph
-    graph_path = path.join(path.dirname(__file__), 'gis/road_network/crs_4326_cleaned_simplified_network/cleaned_simplified.graphml')
-    G = ox.load_graphml(graph_path)
-
-    # convert to undirected graph
-    G_undirected = ox.get_undirected(G)
-
-    orig = 303933494
-    dest = 32637455
-    route = ox.shortest_path(G_undirected, orig, dest)
-
-    # fig, ax = ox.plot_graph_route(G_undirected, route, route_color="y", route_linewidth=6, node_size=0)
-    # plt.show()
-
-    # get lat and lon from route and turninfo
-    lats, lons = get_lat_lon_from_osm_route(G_undirected, route)
-    turn_bool, turn_speed, turn_coords = get_turn_arrays(lats, lons)
-
-    # get initial bearing
-    qdr = qdrdist(lats[0], lons[0], lats[1], lons[1])
-
 
 def get_lat_lon_from_osm_route(G, route):
     """
@@ -174,13 +160,16 @@ def get_turn_arrays(lats, lons, cutoff_angle=25):
     
     return turn_bool, turn_speed, turn_coords
 
-# from geo.py
+'''HELPER FUNCTIONS BELOW'''
+
 def qdrdist(latd1, lond1, latd2, lond2):
     """ Calculate bearing, using WGS'84
         In:
             latd1,lond1 en latd2, lond2 [deg] :positions 1 & 2
         Out:
             qdr [deg] = heading from 1 to 2
+    
+        Function is from bluesky (geo.py)
     """
 
     # Convert to radians
@@ -199,11 +188,13 @@ def qdrdist(latd1, lond1, latd2, lond2):
 
     return qdr
 
-# from geo.py
 def rwgs84(latd):
     """ Calculate the earths radius with WGS'84 geoid definition
         In:  lat [deg] (latitude)
-        Out: R   [m]   (earth radius) """
+        Out: R   [m]   (earth radius) 
+
+        Function is from bluesky (geo.py)
+    """
     lat    = np.radians(latd)
     a      = 6378137.0       # [m] Major semi-axis WGS-84
     b      = 6356752.314245  # [m] Minor semi-axis WGS-84
@@ -219,6 +210,36 @@ def rwgs84(latd):
     r = np.sqrt((an * an + bn * bn) / (ad * ad + bd * bd))
 
     return r
-    
+
+'''TEST FUNCTION BELOW'''
+
+def test():
+    """
+    Test function for the module.
+    """
+    from os import path
+    from matplotlib import pyplot as plt
+
+    # import common elements graph
+    graph_path = path.join(path.dirname(__file__), 'gis/road_network/crs_4326_cleaned_simplified_network/cleaned_simplified.graphml')
+    G = ox.load_graphml(graph_path)
+
+    # convert to undirected graph
+    G_undirected = ox.get_undirected(G)
+
+    orig = 303933494
+    dest = 32637455
+    route = ox.shortest_path(G_undirected, orig, dest)
+
+    fig, ax = ox.plot_graph_route(G_undirected, route, route_color="y", route_linewidth=6, node_size=0)
+    plt.show()
+
+    # get lat and lon from route and turninfo
+    lats, lons = get_lat_lon_from_osm_route(G_undirected, route)
+    turn_bool, turn_speed, turn_coords = get_turn_arrays(lats, lons)
+
+    # get initial bearing
+    qdr = qdrdist(lats[0], lons[0], lats[1], lons[1])
+
 if __name__ == "__main__":
-    main()
+    test()
