@@ -7,7 +7,8 @@ import osmnx as ox
 import geopandas as gpd
 import pandas as pd
 from os import path
-from shapely.strtree import STRtree
+from rtree import index
+
 
 def main():
     # import constrained airspace polygon with geopandas
@@ -25,7 +26,7 @@ def find_border_nodes(airspace_gdf, G):
     Finds the border nodes of the the constrained airspace polygon.
     The funciton needs a geopandas dataframe with the airspace polygon and
     a networkx graph. The function returns gdf with the border nodes. Also
-    returns an STRtree with the border nodes.
+    returns an rtree with the border nodes.
 
     Parameters
     ----------
@@ -41,8 +42,8 @@ def find_border_nodes(airspace_gdf, G):
     border_nodes_gdf : geopandas.GeoDataFrame
         GeoDataFrame with border nodes.
 
-    border_nodes_strtree : shapely.strtree.STRtree
-        STRtree with border nodes.
+    border_nodes_rtree : rtree.index.Index
+        Rtree with border nodes.
     """
 
     # Convert the crs gdf to a projected crs
@@ -61,10 +62,14 @@ def find_border_nodes(airspace_gdf, G):
     # select border nodes based on when nodes_inside is False
     border_nodes_gdf = nodes[nodes_inside == False]
 
-    # add the border nodes to an STRtree
-    node_rtree = STRtree(border_nodes_gdf['geometry'])
+    # crete an rtree
+    border_nodes_rtree = index.Index()
 
-    return border_nodes_gdf, node_rtree
+    # loop through the border nodes and add them to the rtree
+    for idx, node in border_nodes_gdf.iterrows():
+        border_nodes_rtree.insert(idx, node.geometry.bounds)
+
+    return border_nodes_gdf, border_nodes_rtree
 
 if __name__ == "__main__":
     main()
