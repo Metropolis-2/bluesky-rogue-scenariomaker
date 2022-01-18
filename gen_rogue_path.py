@@ -6,7 +6,10 @@ import geopandas as gpd
 import pandas as pd
 from os import path
 import numpy as np
-from shapely.geometry import LineString, Point
+from shapely.geometry import LineString, Point, MultiPoint
+from shapely.ops import linemerge
+from find_border_nodes import find_border_nodes
+from rogue_paths_constrained import get_lat_lon_from_osm_route
 from spawn_despawn_points import get_spawn_despawn_gdfs, get_n_origin_destination_pairs
 from scipy.spatial.transform import Rotation as R
 from matplotlib import pyplot as plt
@@ -22,6 +25,13 @@ def main():
     airspace_path = path.join(path.dirname(__file__), 'gis/airspace/updated_constrained_airspace.gpkg')
     con_airspace = gpd.read_file(airspace_path, driver='GPKG')
 
+    # import common elements graph with osmnx
+    graph_path = path.join(path.dirname(__file__), 'gis/road_network/crs_4326_cleaned_simplified_network/cleaned_simplified.graphml')
+    G = ox.load_graphml(graph_path)
+
+    # convert to undirected graph
+    G_undirected = ox.get_undirected(G)
+
     # get origin and destination points for rogue aircraft
     spawn_gdf, despawn_gdf = get_spawn_despawn_gdfs(airspace, 64, 100, 12000)
 
@@ -34,8 +44,12 @@ def main():
     row_counter = 0
     # choose one random path
     for idx, origin_destination_pair in enumerate(origin_destination_pairs):
-
+        
+        # path that doesn't care about constrained airspace
         random_path = gen_random_path(origin_destination_pair, airspace_polygon)
+
+        # path that cares about constrained airspace
+        random_path = gen_path_through_constrained(random_path, con_airspace, G_undirected)
 
         if idx == 3:
             col_counter = 1
@@ -165,6 +179,221 @@ def gen_random_path(origin_destination_pair, airspace_polygon, segment_length=10
     random_path = LineString(new_gdf.geometry).simplify(simplify_tolerance)
 
     return random_path
+
+def gen_path_through_constrained(random_path, con_airspace, G):
+    """
+    Generate a path that does not violate the constrained airspace.
+    
+    First, it checks if there are any intersections with constrained
+    airspace. If there are none, then it returns the original path.
+
+    If there are intersections, then the function finds the entry
+    and exit points and divides the path into a front path and a
+    back path. 
+    
+    The front path is from the origin to the entry point
+    of constrained airspace. The back path is from the exit point
+    of constrained airspace to the destination.
+
+    The entry and exit points are nodes of the constrained airspace.
+
+    With these nodes, osmnx finds the shortest path through the constrained
+    airspace.
+
+    The last thing is to merge the front path, path through constrained airspace,
+    and back path into one path.
+
+    Parameters
+    ----------
+    random_path : shapely.geometry.LineString
+        The random path that does not respect the constrained airspace.
+    con_airspace : geopandas.GeoDataFrame
+        The constrained airspace.
+    G : networkx.MultiGraph
+        The graph of the constrained airspace
+    
+    Returns
+    -------
+    shapely.geometry.LineString
+        The path that does not violate the constrained airspace.
+    """
+    # get the airspace polygon
+    con_airspace_polygon = con_airspace.geometry.values[0]
+
+    # check if the path intersects the airspace. If not, return the path
+    if not con_airspace_polygon.intersects(random_path):
+        return random_path
+
+    # get the border nodes and rtree of constrained airspace
+    border_node_gdf, node_rtree = find_border_nodes(con_airspace, G)
+
+    # split random path into individual segments to find intersections
+    segments = list(map(LineString, zip(random_path.coords[:-1], random_path.coords[1:])))
+
+    intersecting_idx = []
+    # check which segments intersect with the airspace
+    for idx, segment in enumerate(segments):
+
+        # check if the individual segment intesects with the airspace
+        if segment.intersects(con_airspace_polygon):
+            intersecting_idx.append(idx)
+
+    # split the path into a front and back segments that connect to a constrained airspace polygon
+    front_path, first_node = split_path(segments, intersecting_idx[0], border_node_gdf, node_rtree, con_airspace_polygon, 'front')
+    back_path, last_node = split_path(segments, intersecting_idx[-1], border_node_gdf, node_rtree, con_airspace_polygon, 'back')
+
+    # round geometry to avoid floating point errors
+    front_path = round_geometry(front_path)
+    back_path = round_geometry(back_path)
+
+    # find a path from the front node to the back node in constrained airspace
+    const_route = ox.shortest_path(G, first_node, last_node)
+
+    # get lat lon from osm route
+    _, _, line_gdf = get_lat_lon_from_osm_route(G, const_route)
+
+    # convert to epsg 32633
+    line_gdf = line_gdf.to_crs(epsg=32633)
+    route_line_string = line_gdf.geometry.values[0]
+    route_line_string = round_geometry(route_line_string)
+
+    # merge the front and back paths
+    const_path = linemerge([front_path, route_line_string, back_path])
+
+    return const_path
+
+'''HELPER FUNCTIONS BELOW'''
+
+def split_path(segments, intersecting_idx, border_node_gdf, node_rtree, con_airspace_polygon, loc='front'):
+    """
+    Split the path into a front and back segments that connect to a constrained airspace polygon.
+    If there are more than two intersections in a given segment, then the function
+    finds the closest point to the point to connect to decide which point to use.
+
+    Parameters
+    ----------
+    segments : list of shapely.geometry.LineString
+        The individual segments of the path.
+    intersecting_idx : int
+        The index of the segment that intersects with the constrained airspace.
+    border_node_gdf : geopandas.GeoDataFrame
+        The border nodes of the constrained airspace.
+    node_rtree : rtree.index.Index
+        The rtree of the border nodes of the constrained airspace.
+    con_airspace_polygon : shapely.geometry.Polygon
+        The constrained airspace polygon.
+    loc : str
+        The location of the split. Either 'front' or 'back' path.
+
+    Returns
+    -------
+    shapely.geometry.LineString
+        The front or back path.
+    int
+        The node id of border_nodes_gdf that the front or back path connects to.
+    """
+
+    if loc == 'front':
+        # get the first segments and point to connect new path
+        remain_segment = segments[:intersecting_idx]
+        remain_path = linemerge(remain_segment)
+        point_to_connect = Point(remain_path.coords[-1])
+
+        # find intersecting point of first intersection idx
+        intersecting_line = segments[intersecting_idx]
+        intersecting_point = con_airspace_polygon.boundary.intersection(intersecting_line)
+
+        # check if intersecting points are Point or MultiPoint
+        intersecting_point = filter_multipoint_geometry(intersecting_point, point_to_connect)
+
+        # find the nearest node to the intersecting points
+        intersecting_node = list(node_rtree.nearest(intersecting_point.bounds, 1))[0]
+
+        # extract geometry from border_node_gdf
+        intersecting_node_geom = border_node_gdf.loc[intersecting_node]['geometry']
+
+        # create a line segment from the first_point_to_connect to the first intersecting node
+        new_segment_line = LineString([point_to_connect, intersecting_node_geom])
+
+        # extend the first legs with the first segment line
+        connected_path = linemerge([remain_path, new_segment_line])
+
+    if loc == 'back':
+        # get the first segments and point to connect new path
+        remain_segment = segments[intersecting_idx + 1:]
+        remain_path = linemerge(remain_segment)
+        point_to_connect = Point(remain_path.coords[0])
+
+        # find intersecting point of first intersection idx
+        intersecting_line = segments[intersecting_idx]
+        intersecting_point = con_airspace_polygon.boundary.intersection(intersecting_line)
+
+        # check if intersecting points are Point or MultiPoint
+        intersecting_point = filter_multipoint_geometry(intersecting_point, point_to_connect)
+
+        # find the nearest node to the intersecting points
+        intersecting_node = list(node_rtree.nearest(intersecting_point.bounds, 1))[0]
+
+        # extract geometry from border_node_gdf
+        intersecting_node_geom = border_node_gdf.loc[intersecting_node]['geometry']
+
+        # create a line segment from the first_point_to_connect to the first intersecting node
+        new_segment_line = LineString([intersecting_node_geom, point_to_connect])
+
+        # extend the first legs with the first segment line
+        connected_path = linemerge([new_segment_line, remain_path])
+
+    return connected_path, intersecting_node
+
+def round_geometry(geometry, round_to=1):
+    """
+    Round the coordinates of a shapely geometry to the given precision.
+
+    Parameters
+    ----------
+    geometry : shapely.geometry.base.BaseGeometry
+        The geometry to round.
+    round_to : float, optional
+        The precision to round to.
+
+    Returns
+    -------
+    shapely.geometry.base.BaseGeometry
+        The rounded geometry.
+    """
+    if isinstance(geometry, Point):
+        return Point(round(geometry.x, round_to), round(geometry.y, round_to))
+    elif isinstance(geometry, LineString):
+        return LineString([(round(coord[0], round_to), round(coord[1], round_to)) for coord in geometry.coords])
+    else:
+        raise ValueError("Unsupported geometry type: {}".format(type(geometry)))
+
+def filter_multipoint_geometry(intersecting_point, points_to_connect):
+    """
+    Filter the multipoint geometry to only keep the point that is closest to the points_to_connect
+
+    Parameters
+    ----------
+    intersecting_point : shapely.geometry.multipoint.MultiPoint
+        The multipoint geometry that intersects with the airspace
+    points_to_connect : shapely.geometry.point.Point
+        The point that is being connected to the intersecting_point
+
+    Returns
+    -------
+    shapely.geometry.point.Point
+        The point that is closest to the points_to_connect
+    """
+    # filter out MultiPoint geometries
+    if isinstance(intersecting_point, MultiPoint):
+
+        # extract single points
+        list_points = list(intersecting_point)
+
+        # check which point in the list is closest to first_point_to_connect
+        intersecting_point = min(list_points, key=lambda x: x.distance(points_to_connect))
+    
+    return intersecting_point
 
 if __name__ == '__main__':
     main()
