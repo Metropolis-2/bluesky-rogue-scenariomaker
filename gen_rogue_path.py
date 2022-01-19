@@ -162,6 +162,11 @@ def gen_path_through_constrained(random_path, con_airspace, G):
     Note that it is always false for open airspace. Also returns a bool
     that tells if you are in constrained airspace.
 
+    Also creates a cruising altitude change boolean. It sets it to true
+    in places where there should be an altitude change. Right now
+    it just finds the mid waypoint of all three paths and sets those
+    as the locations where the altitude changes.
+
     Parameters
     ----------
     random_path : shapely.geometry.LineString
@@ -175,12 +180,17 @@ def gen_path_through_constrained(random_path, con_airspace, G):
     
     Returns
     -------        
-    shapely.geometry.LineString
+    merged_path : shapely.geometry.LineString
         The full path that does not violate the constrained airspace.
 
-    numpy.ndarray
+    turn_bool : numpy.ndarray
         The turn bool.
     
+    in_constrained : numpy.ndarray
+        The bool that tells if you are in constrained airspace.
+
+    cruising_altitude_change : numpy.ndarray
+        The bool that tells if there is an altitude change.
     """
     # get the airspace polygon
     con_airspace_polygon = con_airspace.geometry.values[0]
@@ -240,8 +250,23 @@ def gen_path_through_constrained(random_path, con_airspace, G):
    
     # combine arrays
     in_constrained = np.concatenate([const_bool_front, const_bool_const, const_bool_back])
+
+    # modify cruise altitude in start constrained, and end path.
+    cruise_alt_changes = np.array([False] * len(in_constrained))
+
+    # find end and start of constrained path
+    start_idx = np.where(in_constrained)[0][0]
+    end_idx = np.where(in_constrained)[0][-1]
+
+    # height variations of start and end path (around midpoint waypoint)
+    cruise_alt_changes[int(np.floor(start_idx/2))] = True
+    cruise_alt_changes[int(np.ceil(end_idx + (len(in_constrained) - end_idx)/2))] = True
     
-    return merged_path, turn_bool, in_constrained
+    # height variation of path through constrained airspace. around middle waypoint
+    constrained_idx = int(np.floor((end_idx - start_idx)/2))
+    cruise_alt_changes[constrained_idx] = True
+
+    return merged_path, turn_bool, in_constrained, cruise_alt_changes
 
 
 '''HELPER FUNCTIONS BELOW'''
@@ -423,7 +448,7 @@ def test():
         random_path = gen_random_path(origin_destination_pair, airspace_polygon)
 
         # path that cares about constrained airspace
-        random_path, turn_bool, in_constrained = gen_path_through_constrained(random_path, con_airspace, G_undirected)
+        random_path, turn_bool, in_constrained, _ = gen_path_through_constrained(random_path, con_airspace, G_undirected)
 
         if idx == 3:
             col_counter = 1
