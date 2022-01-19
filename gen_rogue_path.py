@@ -424,8 +424,7 @@ def test():
     """
     Test the functions in this module. It uses the module spawn_despawn_points 
     for choosing the origin and destination points and makes a nice plot of several paths.
-    """
-
+    """    
     from os import path
     from matplotlib import pyplot as plt
 
@@ -436,6 +435,7 @@ def test():
     buffer_distance = cfg.buffer_distance
     spawn_distance = cfg.spawn_distance
     min_path_distance = cfg.min_path_distance
+    respect_constrained_airspace = cfg.respect_constrained_airspace
 
     # import airspace polygon with geopandas
     airspace_path = path.join(path.dirname(__file__), 'gis/airspace/total_polygon.gpkg')
@@ -469,8 +469,9 @@ def test():
         # path that doesn't care about constrained airspace
         random_path , _ = gen_random_path(origin_destination_pair, airspace_polygon)
 
-        # path that cares about constrained airspace
-        random_path, turn_bool, in_constrained, _ = gen_path_through_constrained(random_path, con_airspace, G_undirected)
+        if respect_constrained_airspace:
+            # path that cares about constrained airspace
+            random_path, turn_bool, in_constrained, _ = gen_path_through_constrained(random_path, con_airspace, G_undirected)
 
         if idx == 3:
             col_counter = 1

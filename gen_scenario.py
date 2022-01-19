@@ -133,7 +133,6 @@ def create_scenario_text(acidx, lats, lons, cruise_alts, cruise_alt_changes, tur
     scenario_lines = []
 
     # first line
-    scenario_lines.append(f'00:00:00>CASMACHTHR 0.0')
     scenario_lines.append(f'00:00:00>CREROGUE R{acidx} MP30 {lats[0]} {lons[0]} {achdg} {np.random.choice(cruise_alts)} 30')
 
     # Create the add waypoints command
