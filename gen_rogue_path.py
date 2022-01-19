@@ -285,7 +285,6 @@ def gen_path_through_constrained(random_path, con_airspace, G):
 
     return merged_path, turn_bool, in_constrained, cruise_alt_changes
 
-
 '''HELPER FUNCTIONS BELOW'''
 
 def split_path(segments, intersecting_idx, border_node_gdf, node_rtree, con_airspace_polygon, loc='front'):
@@ -431,6 +430,12 @@ def test():
     from matplotlib import pyplot as plt
 
     from spawn_despawn_points import get_spawn_despawn_gdfs, get_n_origin_destination_pairs
+    import config as cfg
+    
+    # Read config file for defaults
+    buffer_distance = cfg.buffer_distance
+    spawn_distance = cfg.spawn_distance
+    min_path_distance = cfg.min_path_distance
 
     # import airspace polygon with geopandas
     airspace_path = path.join(path.dirname(__file__), 'gis/airspace/total_polygon.gpkg')
@@ -449,7 +454,7 @@ def test():
     G_undirected = ox.get_undirected(G)
 
     # get origin and destination points for rogue aircraft
-    spawn_gdf, despawn_gdf = get_spawn_despawn_gdfs(airspace, 64, 100, 12000)
+    spawn_gdf, despawn_gdf = get_spawn_despawn_gdfs(airspace, buffer_distance, spawn_distance, min_path_distance)
 
     # get n origin and destination pairs
     origin_destination_pairs = get_n_origin_destination_pairs(spawn_gdf, despawn_gdf, 9)
@@ -462,7 +467,7 @@ def test():
     for idx, origin_destination_pair in enumerate(origin_destination_pairs):
         
         # path that doesn't care about constrained airspace
-        random_path = gen_random_path(origin_destination_pair, airspace_polygon)
+        random_path , _ = gen_random_path(origin_destination_pair, airspace_polygon)
 
         # path that cares about constrained airspace
         random_path, turn_bool, in_constrained, _ = gen_path_through_constrained(random_path, con_airspace, G_undirected)

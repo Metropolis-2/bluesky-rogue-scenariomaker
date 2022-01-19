@@ -138,13 +138,19 @@ def test():
     Test function for the module.
     """
     from os import path
+    import config as cfg
+
+    # defaults
+    buffer_distance = cfg.buffer_distance
+    spawn_distance = cfg.spawn_distance
+    min_path_distance = cfg.min_path_distance
 
     # import airspace polygon with geopandas
     airspace_path = path.join(path.dirname(__file__), 'gis/airspace/total_polygon.gpkg')
     airspace = gpd.read_file(airspace_path, driver='GPKG', layer='total_polygon')
 
     # get origin and destination points for rogue aircraft
-    spawn_gdf, despawn_gdf = get_spawn_despawn_gdfs(airspace, 64, 100, 12000)
+    spawn_gdf, despawn_gdf = get_spawn_despawn_gdfs(airspace, buffer_distance, spawn_distance, min_path_distance)
 
     # get 10 origin and destination pairs
     origin_destination_pairs = get_n_origin_destination_pairs(spawn_gdf, despawn_gdf, 10)

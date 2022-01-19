@@ -3,17 +3,19 @@ This module is used to generate scenario files for rogue aircraft.
 
 The other functions are helper and test functions for the two important functions.
 
+The important imported modules from this project are:
+    1. gen_rogue_path used to generate the random path for the rogue aircraft.
+
 Code written by: Andres Morfin Veytia
 Project: Metropolis 2
 """
 
+from os import path
 import osmnx as ox
 import geopandas as gpd
-from os import path
 import numpy as np
 from pyproj import Transformer
 
-from spawn_despawn_points import get_spawn_despawn_gdfs, get_n_origin_destination_pairs
 from gen_rogue_path import gen_random_path, gen_path_through_constrained
 from rogue_paths_constrained import qdrdist
 
@@ -176,7 +178,8 @@ def create_scenario_text(acidx, lats, lons, cruise_alts, cruise_alt_changes, tur
 
 def test():
     from matplotlib import pyplot as plt
-    from os import path
+    
+    from spawn_despawn_points import get_spawn_despawn_gdfs, get_n_origin_destination_pairs
 
     # defaul values
     segment_length = 1000
