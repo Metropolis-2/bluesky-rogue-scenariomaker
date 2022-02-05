@@ -15,6 +15,7 @@ import osmnx as ox
 import geopandas as gpd
 from rtree import index
 
+
 def find_border_nodes(airspace_gdf, G):
     """
     Finds the border nodes of the the constrained airspace polygon.
@@ -51,7 +52,7 @@ def find_border_nodes(airspace_gdf, G):
     airspace_buff = airspace_gdf.buffer(-0.5)
 
     # see which nodes are inside the airspace border
-    nodes_inside = nodes['geometry'].apply(lambda x: x.within(airspace_buff.values[0]))
+    nodes_inside = nodes["geometry"].apply(lambda x: x.within(airspace_buff.values[0]))
 
     # select border nodes based on when nodes_inside is False
     border_nodes_gdf = nodes[nodes_inside == False]
@@ -65,7 +66,9 @@ def find_border_nodes(airspace_gdf, G):
 
     return border_nodes_gdf, border_nodes_rtree
 
-'''TEST FUNCTION BELOW'''
+
+"""TEST FUNCTION BELOW"""
+
 
 def test():
     """
@@ -74,14 +77,20 @@ def test():
     from os import path
 
     # import constrained airspace polygon with geopandas
-    airspace_path = path.join(path.dirname(__file__), 'gis/airspace/updated_constrained_airspace.gpkg')
+    airspace_path = path.join(
+        path.dirname(__file__), "gis/airspace/updated_constrained_airspace.gpkg"
+    )
     airspace = gpd.read_file(airspace_path)
 
     # import common elements graph with osmnx
-    graph_path = path.join(path.dirname(__file__), 'gis/road_network/crs_4326_cleaned_simplified_network/cleaned_simplified.graphml')
+    graph_path = path.join(
+        path.dirname(__file__),
+        "gis/road_network/crs_4326_cleaned_simplified_network/cleaned_simplified.graphml",
+    )
     G = ox.load_graphml(graph_path)
 
     border_node_gdf = find_border_nodes(airspace, G)
+
 
 if __name__ == "__main__":
     test()
