@@ -84,10 +84,10 @@ def get_turn_arrays(lats, lons, cutoff_angle=25):
 
     Turn speed depends on the turn angle.
 
-        - Speed set to 0 for no turn.
-        - Speed to 10 knots for angles smaller than 45 degrees.
-        - Speed to 5 knots for turning angles between 45 and 90 degrees.
-        - Speed to 2 knots for turning angles larger tha 90 degrees.
+        - Speed set to 0 for no turns.
+        - Speed is 10 knots for angles between 25 and 100 degrees.
+        - Speed is 5 knots for angles between 100 and 150 degrees.
+        - Speed is 2 knots for angles larger than 150 degrees.
 
     Parameters
     ----------
