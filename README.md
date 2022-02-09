@@ -16,7 +16,7 @@ Paths that do not care about constrained airspace look like this:
 ![image](https://user-images.githubusercontent.com/78442543/150139523-0c85804e-d6ed-494d-bc74-33acebbb9763.png)
 
 # Integration with concept scenarios
-The scenarios inside [scenarios](https://github.com/Metropolis-2/bluesky-rogue-scenariomaker/tree/main/scenarios) can be added to any scenarios by adding ```PCALL`` command to the scenario (see the BlueSky [documentation](https://github.com/TUDelft-CNS-ATM/bluesky/wiki/pcall) for more information).
+These [scenarios](https://github.com/Metropolis-2/bluesky-rogue-scenariomaker/tree/main/scenarios) can be added to any concept scenario by adding ```PCALL``` command to the scenario (see the BlueSky [documentation](https://github.com/TUDelft-CNS-ATM/bluesky/wiki/pcall) for more information).
 
 Since concepts cannot control rogue aircraft, make sure your plugins contain exceptions for rogue aircraft. Rogue aircraft are able to navigate to their destinations without any input from the concepts.
 
