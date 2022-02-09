@@ -1,17 +1,21 @@
 # bluesky-rogue-scenariomaker
 BlueSky scenario maker for rogue aircraft.
 
-In order to generate scenarios, modify the defaults in ```config.py``` and then run ```main.py```.
+To generate scenarios
+ 1. modify the defaults in ```config.py```.
+ 2. run ```main.py```.
 
-Works by generating a random path with origin and destination outside of open airspace. The user has the option to set a minimum length. It also possible to generate a path that adapts to constrained airspace (does not hit buildings). The cruising altitude of an aircraft will change three times during the path.
+The module generates random paths with origins and destinations outside of open airspace. The cruising altitude of an aircraft changes three times during the path.
 
 # Path examples
 
-Paths that care about constrained airspace look like this:
+Two different paths can be generated.
+
+Paths that respect constrained airspace are like this:
 
 ![image](https://user-images.githubusercontent.com/78442543/150139109-a6c464c9-81d7-48ad-86cf-618e53118544.png)
 
-Paths that do not care about constrained airspace look like this:
+Paths that do not respect constrained airspace are like this:
 
 ![image](https://user-images.githubusercontent.com/78442543/150139523-0c85804e-d6ed-494d-bc74-33acebbb9763.png)
 
